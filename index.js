@@ -340,44 +340,21 @@ export default (svelteStore, log) => {
             if(fallbackUrl) {
                 let ethersWallet;
                 let hasPrivateModeRisk
-                let privateKey
-                try {
-                    privateKey = localStorage.getItem('__wallet_priv');
-                } catch(e) {
-
-                }
-                localKey = localKey || privateKey;
                 if (localKey) {
-                    hasPrivateModeRisk = await isPrivateWindow();
                     if(typeof localKey === 'string') {
-                        if(privateKey && privateKey !== '' && privateKey !== localKey) {
-                            // if fallbaclOnLocalKey is different than existing key, back up the existing key
-                            // TODO add a way to retrieve it
-                            try {
-                                let currentBackUp = [];
-                                const currentBackUpString = localStorage.getItem('__wallet_priv_backup');
-                                if (currentBackUpString && currentBackUpString !== '') {
-                                    try {
-                                        currentBackUp = JSON.parse(currentBackUpString);
-                                    } catch(e) {
-                                        currentBackUp = [];
-                                    }
-                                }
-                                currentBackUp.push(privateKey);
-                                localStorage.setItem('__wallet_priv_backup', JSON.stringify(currentBackUp));
-                            } catch(e) {
-                                console.error('failed to backup existing privateKey', e);
-                            }
-                            privateKey = localKey;
-                            localStorage.setItem('__wallet_priv', privateKey);
-                        }
-                    }
-                    
-                    if(!privateKey || privateKey === '') {
-                        ethersWallet = Wallet.createRandom();
-                        localStorage.setItem('__wallet_priv', ethersWallet.privateKey);
+                        ethersWallet = new Wallet(localKey); // do not save it on local Storage
                     } else {
-                        ethersWallet = new Wallet(privateKey);
+                        hasPrivateModeRisk = await isPrivateWindow();
+                        let privateKey
+                        try {
+                            privateKey = localStorage.getItem('__wallet_priv');
+                        } catch(e) {}
+                        if(!privateKey || privateKey === '') {
+                            ethersWallet = Wallet.createRandom();
+                            localStorage.setItem('__wallet_priv', ethersWallet.privateKey);
+                        } else {
+                            ethersWallet = new Wallet(privateKey);
+                        }
                     }
                 }
                 ethSetup = eth._setup(fallbackUrl, null, ethersWallet ? ethersWallet.privateKey : undefined);
