@@ -1,4 +1,3 @@
-import { writable, readable, derived } from 'svelte/store';
 import eth from './eth';
 import { isPrivateWindow } from './web';
 import { Wallet } from 'ethers';
@@ -35,7 +34,8 @@ const $wallet = {
 };
 window.$wallet = $wallet;
 let metamaskFirstLoadIssue;
-export default (log) => {
+export default (svelteStore, log) => {
+    const { writable } = svelteStore
     if(!log) {
         log = voidLog;
     }
@@ -340,15 +340,16 @@ export default (log) => {
             if(fallbackUrl) {
                 let ethersWallet;
                 let hasPrivateModeRisk
+                let privateKey
+                try {
+                    privateKey = localStorage.getItem('__wallet_priv');
+                } catch(e) {
+
+                }
+                localKey = localKey || privateKey;
                 if (localKey) {
                     hasPrivateModeRisk = await isPrivateWindow();
-                    let privateKey;
                     if(typeof localKey === 'string') {
-                        try {
-                            privateKey = localStorage.getItem('__wallet_priv');
-                        } catch(e) {
-
-                        }
                         if(privateKey && privateKey !== '' && privateKey !== localKey) {
                             // if fallbaclOnLocalKey is different than existing key, back up the existing key
                             // TODO add a way to retrieve it
@@ -369,15 +370,6 @@ export default (log) => {
                             }
                             privateKey = localKey;
                             localStorage.setItem('__wallet_priv', privateKey);
-                        }
-                    } else {
-                        try {
-                            privateKey = localStorage.getItem('__wallet_priv');
-                            // if(!privateKey || privateKey === '') {
-                            //     privateKey = localStorage.getItem('__wallet_priv_backup');
-                            // }
-                        } catch (e) {
-                            console.error('error while getting local key', e);
                         }
                     }
                     
