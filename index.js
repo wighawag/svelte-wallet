@@ -297,8 +297,22 @@ export default (svelteStore, log) => {
                     ethSetup = eth._setup(fallbackUrl, ethereum);
                     const fallbackChainId = await eth.fetchChainId();
                     if (registerContracts) {
-                        const contractsInfo = await registerContracts($wallet, fallbackChainId);
-                        contracts = eth.setupContracts(contractsInfo);
+                        try {
+                            const contractsInfo = await registerContracts($wallet, fallbackChainId);
+                            contracts = eth.setupContracts(contractsInfo);
+                        } catch (e) {
+                            log.error(`failed to setup contracts for chain ${fallbackChainId} using ${fallbackUrl}`, e);
+                            _set({
+                                status: 'Error',
+                                error: {
+                                    code: 5030,
+                                    message: `no contract deployed on chain ${fallbackChainId}`, // could try again
+                                },
+                                readOnly: true,
+                            });
+                            return;
+                        }
+                        
                     }
                     readOnly = true;
                 }
@@ -369,8 +383,21 @@ export default (svelteStore, log) => {
                 if (chainId) {
                     _set({chainId});
                     if (registerContracts) {
-                        const contractsInfo = await registerContracts($wallet);
-                        contracts = eth.setupContracts(contractsInfo);
+                        try {
+                            const contractsInfo = await registerContracts($wallet);
+                            contracts = eth.setupContracts(contractsInfo);
+                        } catch (e) {
+                            log.error(`failed to setup contracts for chain ${chainId} using ${fallbackUrl}`, e);
+                            _set({
+                                status: 'Error',
+                                error: {
+                                    code: 5030,
+                                    message: `no contract deployed on chain ${chainId}`, // could try again
+                                },
+                                readOnly: true,
+                            });
+                            return;
+                        }
                     }
                     if (ethersWallet) {
                         _set({
