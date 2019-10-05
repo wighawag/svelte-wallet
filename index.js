@@ -40,7 +40,9 @@ export default (svelteStore, log) => {
         log = voidLog;
     }
 
-    let ethSetup;
+    let _ethSetup;
+    let _fallbackUrl;
+    let _registerContracts;
     
     function reloadPage(reason, instant) {
         log.info((instant ? 'instant ' : '') + 'reloading page because ' + reason);
@@ -102,7 +104,7 @@ export default (svelteStore, log) => {
                     }
                 } else {
                     // if($wallet.readOnly) {
-                    //     ethSetup = eth._setup(ethereum);
+                    //     _ethSetup = eth._setup(ethereum);
                     // }
                     log.info('now READY');
                     _set({
@@ -114,7 +116,7 @@ export default (svelteStore, log) => {
             } else {
                 if ($wallet.address) {
                     // if($wallet.readOnly) {
-                    //     ethSetup = eth._setup(ethereum);
+                    //     _ethSetup = eth._setup(ethereum);
                     // }
                     _set({
                         address: undefined,
@@ -204,6 +206,8 @@ export default (svelteStore, log) => {
     }
 
     async function _load({ fallbackUrl, supportedChainIds, registerContracts, localKey, disableBuiltInWallet }, isRetry) {
+        _fallbackUrl = fallbackUrl;
+        _registerContracts = registerContracts;
         _set({ status: 'Loading', supportedChainIds });
 
         disableBuiltInWallet = disableBuiltInWallet || typeof localKey === 'string';
@@ -237,7 +241,7 @@ export default (svelteStore, log) => {
                 });
                 return $wallet;
             }
-            ethSetup = eth._setup(ethereum);
+            _ethSetup = eth._setup(ethereum);
             web3EnabledAndWorking = true;
             // log.info('web3 is there...');
             // log.info('checking chainId...');
@@ -251,8 +255,8 @@ export default (svelteStore, log) => {
                     metamaskFirstLoadIssue = true;
                 }
                 log.error('builtin wallet : error fetching chainId', e);
-                if(fallbackUrl) {
-                    ethSetup = eth._setup(fallbackUrl, ethereum);
+                if(_fallbackUrl) {
+                    _ethSetup = eth._setup(_fallbackUrl, ethereum);
                 }
                 if (isOperaWallet) {
                     log.info('Opera web3 quircks');
@@ -268,7 +272,7 @@ export default (svelteStore, log) => {
                     // } else {
                     _set({
                         status: 'Opera_FailedChainId',
-                        readOnly: fallbackUrl ? true : undefined
+                        readOnly: _fallbackUrl ? true : undefined
                     });
                     // }
                 } else {
@@ -278,7 +282,7 @@ export default (svelteStore, log) => {
                             code: 5030,
                             message: "could not detect current chain",
                         },
-                        readOnly: fallbackUrl ? true : undefined
+                        readOnly: _fallbackUrl ? true : undefined
                     });
                 }
                 log.info('failed to get chain Id');
@@ -293,15 +297,15 @@ export default (svelteStore, log) => {
 
             if (supportedChainIds && supportedChainIds.indexOf(chainId) == -1) {
                 let readOnly
-                if(fallbackUrl) {
-                    ethSetup = eth._setup(fallbackUrl, ethereum);
+                if(_fallbackUrl) {
+                    _ethSetup = eth._setup(_fallbackUrl, ethereum);
                     const fallbackChainId = await eth.fetchChainId();
-                    if (registerContracts) {
+                    if (_registerContracts) {
                         try {
-                            const contractsInfo = await registerContracts($wallet, fallbackChainId);
+                            const contractsInfo = await _registerContracts($wallet, fallbackChainId);
                             contracts = eth.setupContracts(contractsInfo);
                         } catch (e) {
-                            log.error(`failed to setup contracts for chain ${fallbackChainId} using ${fallbackUrl}`, e);
+                            log.error(`failed to setup contracts for chain ${fallbackChainId} using ${_fallbackUrl}`, e);
                             _set({
                                 status: 'Error',
                                 error: {
@@ -322,8 +326,8 @@ export default (svelteStore, log) => {
                     readOnly
                 })
             } else {
-                if (ethSetup && registerContracts) {
-                    const contractsInfo = await registerContracts($wallet);
+                if (_ethSetup && _registerContracts) {
+                    const contractsInfo = await _registerContracts($wallet);
                     contracts = eth.setupContracts(contractsInfo);
                 }
             }
@@ -351,76 +355,26 @@ export default (svelteStore, log) => {
                 watch();
             }
         } else {
-            if(fallbackUrl) {
+            if(_fallbackUrl) {
                 let ethersWallet;
-                let hasPrivateModeRisk
                 if (localKey) {
+                    log.trace('using localkey', localKey);
                     if(typeof localKey === 'string') {
                         ethersWallet = new Wallet(localKey); // do not save it on local Storage
+                        await setupLocalWallet(ethersWallet);
                     } else {
-                        hasPrivateModeRisk = await isPrivateWindow();
-                        let privateKey
-                        try {
-                            privateKey = localStorage.getItem('__wallet_priv');
-                        } catch(e) {}
-                        if(!privateKey || privateKey === '') {
-                            ethersWallet = Wallet.createRandom();
-                            localStorage.setItem('__wallet_priv', ethersWallet.privateKey);
-                        } else {
-                            ethersWallet = new Wallet(privateKey);
-                        }
-                    }
-                }
-                ethSetup = eth._setup(fallbackUrl, null, ethersWallet ? ethersWallet.privateKey : undefined);
-                let chainId;
-                try {
-                    log.trace('fetching chainId from fallback...');
-                    chainId = await eth.fetchChainId();
-                    log.trace(`chainId : ${chainId}`);
-                } catch (e) {
-                    log.error('fallback : error fetching chainId', e);
-                }
-                if (chainId) {
-                    _set({chainId});
-                    if (registerContracts) {
-                        try {
-                            const contractsInfo = await registerContracts($wallet);
-                            contracts = eth.setupContracts(contractsInfo);
-                        } catch (e) {
-                            log.error(`failed to setup contracts for chain ${chainId} using ${fallbackUrl}`, e);
-                            _set({
-                                status: 'Error',
-                                error: {
-                                    code: 5030,
-                                    message: `no contract deployed on chain ${chainId}`, // could try again
-                                },
-                                readOnly: true,
-                            });
-                            return;
-                        }
-                    }
-                    if (ethersWallet) {
-                        _set({
-                            address: ethersWallet.address,
-                            status: 'Ready',
-                            isLocal: true,
-                            hasPrivateModeRisk: hasPrivateModeRisk ? true : undefined,
-                        });
-                    } else {
-                        _set({
-                            status: 'NoWallet',
-                            readOnly: true
-                        });
+                        await createLocalWallet();
                     }
                 } else {
-                    _set({
-                        status: 'Error',
-                        error: {
-                            code: 5030,
-                            message: "could not detect current chain", // could try again
-                        },
-                        readOnly: ethersWallet ? undefined : true,
-                    });
+                    let privateKey
+                    try {
+                        privateKey = localStorage.getItem('__wallet_priv');
+                    } catch(e) {}
+                    let ethersWallet;
+                    if(privateKey && privateKey !== '') {
+                        ethersWallet = new Wallet(privateKey);
+                    }
+                    await setupLocalWallet(ethersWallet);
                 }
             } else {
                 _set({
@@ -534,6 +488,82 @@ export default (svelteStore, log) => {
         }
         return $wallet;
     }
+    
+    async function setupLocalWallet(ethersWallet) {
+        log.trace('setting up local wallet...', ethersWallet);
+        _ethSetup = eth._setup(_fallbackUrl, null, ethersWallet ? ethersWallet.privateKey : undefined);
+        let chainId;
+        try {
+            log.trace('fetching chainId from fallback...');
+            chainId = await eth.fetchChainId();
+            log.trace(`chainId : ${chainId}`);
+        } catch (e) {
+            log.error('fallback : error fetching chainId', e);
+        }
+        if (chainId) {
+            _set({chainId});
+            if (_registerContracts) {
+                try {
+                    const contractsInfo = await _registerContracts($wallet);
+                    contracts = eth.setupContracts(contractsInfo);
+                } catch (e) {
+                    log.error(`failed to setup contracts for chain ${chainId} using ${_fallbackUrl}`, e);
+                    _set({
+                        status: 'Error',
+                        error: {
+                            code: 5030,
+                            message: `no contract deployed on chain ${chainId}`, // could try again
+                        },
+                        readOnly: true,
+                    });
+                    return;
+                }
+            }
+            if (ethersWallet) {
+                const hasPrivateModeRisk = await isPrivateWindow();
+                _set({
+                    address: ethersWallet.address,
+                    status: 'Ready',
+                    isLocal: true,
+                    hasPrivateModeRisk: hasPrivateModeRisk ? true : undefined,
+                });
+            } else {
+                _set({
+                    status: 'NoWallet',
+                    readOnly: true
+                });
+            }
+        } else {
+            _set({
+                status: 'Error',
+                error: {
+                    code: 5030,
+                    message: "could not detect current chain", // could try again
+                },
+                readOnly: ethersWallet ? undefined : true,
+            });
+        }
+    }
+
+    async function createLocalWallet() {
+        _set({status: 'CreatingLocalWallet'});
+        log.trace('creating new wallet...');
+        // TODO test over builtInWallet ?
+        let privateKey
+        try {
+            privateKey = localStorage.getItem('__wallet_priv');
+        } catch(e) {}
+        if(privateKey && privateKey !== '') {
+            throw new Error('cannot override existing local wallet');
+        }
+        const ethersWallet = Wallet.createRandom();
+        try {
+            localStorage.setItem('__wallet_priv', ethersWallet.privateKey);
+        } catch(e) {
+            throw new Error('cannot save local wallet');
+        }
+        await setupLocalWallet(ethersWallet);
+    }
 
     async function tx(options, contract, methodName, ...args) {
         const w = await ensureEnabled();
@@ -625,7 +655,8 @@ export default (svelteStore, log) => {
         onTransactionBroadcasted,
         tx,
         call,
-        getProvider: () => ethSetup.provider,
+        createLocalWallet,
+        getProvider: () => _ethSetup.provider,
         reloadPage: () => reloadPage('requested', true),
         getContract: (name) => {
             const ethersContract = contracts[name];
