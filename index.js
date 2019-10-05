@@ -43,6 +43,7 @@ export default (svelteStore, log) => {
     let _ethSetup;
     let _fallbackUrl;
     let _registerContracts;
+    let _fetchInitialBalance;
     
     function reloadPage(reason, instant) {
         log.info((instant ? 'instant ' : '') + 'reloading page because ' + reason);
@@ -91,7 +92,7 @@ export default (svelteStore, log) => {
     }
 
     function watch() {
-        function checkAccounts(accounts) {
+        async function checkAccounts(accounts) {
             if ($wallet.status === 'Locked' || $wallet.status === 'Unlocking') {
                 return; // skip as Unlock / post-Unlocking will fetch the account
             }
@@ -106,11 +107,16 @@ export default (svelteStore, log) => {
                     // if($wallet.readOnly) {
                     //     _ethSetup = eth._setup(ethereum);
                     // }
+                    let initialBalance;
+                    if(_fetchInitialBalance) {
+                        initialBalance = await _ethSetup.provider.getBalance(account);
+                    }
                     log.info('now READY');
                     _set({
                         address: account,
                         status: 'Ready',
                         readOnly: undefined,
+                        initialBalance,
                     });
                 }
             } else {
@@ -146,7 +152,7 @@ export default (svelteStore, log) => {
                 log.error('watch account error', e);
             }
 
-            checkAccounts(accounts);
+            await checkAccounts(accounts);
         }
         async function watchChain() {
             let newChainId;
@@ -205,9 +211,10 @@ export default (svelteStore, log) => {
         ])
     }
 
-    async function _load({ fallbackUrl, supportedChainIds, registerContracts, localKey, disableBuiltInWallet }, isRetry) {
+    async function _load({ fallbackUrl, supportedChainIds, registerContracts, localKey, disableBuiltInWallet, fetchInitialBalance}, isRetry) {
         _fallbackUrl = fallbackUrl;
         _registerContracts = registerContracts;
+        _fetchInitialBalance = fetchInitialBalance;
         _set({ status: 'Loading', supportedChainIds });
 
         disableBuiltInWallet = disableBuiltInWallet || typeof localKey === 'string';
@@ -342,10 +349,15 @@ export default (svelteStore, log) => {
                 accounts = undefined;
             }
             if (accounts && accounts.length > 0) {
+                let initialBalance;
+                if(_fetchInitialBalance) {
+                    initialBalance = await _ethSetup.provider.getBalance(accounts[0]);
+                }
                 log.info('already READY');
                 _set({
                     address: accounts[0],
-                    status: 'Ready'
+                    status: 'Ready',
+                    initialBalance,
                 });
             } else {
                 _set({ status: 'Locked' });
@@ -467,10 +479,15 @@ export default (svelteStore, log) => {
         // }
 
         if (accounts.length > 0) {
+            let initialBalance;
+            if(_fetchInitialBalance) {
+                initialBalance = await _ethSetup.provider.getBalance(accounts[0]);
+            }
             log.info('unlocked READY');
             _set({
                 address: accounts[0],
-                status: 'Ready'
+                status: 'Ready',
+                initialBalance,
             });
         } else {
             _set({
@@ -521,11 +538,16 @@ export default (svelteStore, log) => {
             }
             if (ethersWallet) {
                 const hasPrivateModeRisk = await isPrivateWindow();
+                let initialBalance;
+                if(_fetchInitialBalance) {
+                    initialBalance = await _ethSetup.provider.getBalance(ethersWallet.address);
+                }
                 _set({
                     address: ethersWallet.address,
                     status: 'Ready',
                     isLocal: true,
                     hasPrivateModeRisk: hasPrivateModeRisk ? true : undefined,
+                    initialBalance,
                 });
             } else {
                 _set({
