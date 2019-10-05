@@ -1,6 +1,6 @@
 {
   "name": "svelte-wallet",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "main": "index.js",
   "repository": "git@github.com:wighawag/svelte-wallet.git",
   "author": "Wighawag <wighawag@gmail.com>",
