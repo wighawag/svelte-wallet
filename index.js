@@ -375,7 +375,16 @@ export default (svelteStore, log) => {
                         ethersWallet = new Wallet(localKey); // do not save it on local Storage
                         await setupLocalWallet(ethersWallet);
                     } else {
-                        await createLocalWallet();
+                        let privateKey
+                        try {
+                            privateKey = localStorage.getItem('__wallet_priv');
+                        } catch(e) {}
+                        if(privateKey && privateKey !== '') {
+                            const ethersWallet = new Wallet(privateKey);
+                            await setupLocalWallet(ethersWallet);
+                        } else {
+                            await createLocalWallet();
+                        }
                     }
                 } else {
                     let privateKey
