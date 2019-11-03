@@ -6,24 +6,27 @@ let signer;
 let builtinProvider;
 
 export default {
-    _setup: (ethereumOrURL, ethereum, privateKey) => {
+    _setup: (web3ProviderOrURL, web3Provider, privateKey) => { // TODO rename web3Provider/web3ProviderOrURL to web3Provider/...
+        let web3ProviderGiven;
         contracts = {};
         provider = undefined;
         signer = undefined;
         builtinProvider = undefined;
-        if (typeof ethereumOrURL === 'string') {
-            provider = new ethers.providers.JsonRpcProvider(ethereumOrURL);
+        if (typeof web3ProviderOrURL === 'string') {
+            provider = new ethers.providers.JsonRpcProvider(web3ProviderOrURL);
             if (privateKey) {
                 signer = new ethers.Wallet(privateKey);
                 signer = signer.connect(provider);
                 builtinProvider = provider;
-            } else if (ethereum) {
-                builtinProvider = new ethers.providers.Web3Provider(ethereum);
+            } else if (web3Provider) {
+                builtinProvider = new ethers.providers.Web3Provider(web3Provider);
+                web3ProviderGiven = web3Provider;
             } else {
                 builtinProvider = provider;
             }
         } else {
-            provider = new ethers.providers.Web3Provider(ethereumOrURL);
+            provider = new ethers.providers.Web3Provider(web3ProviderOrURL);
+            web3ProviderGiven = web3ProviderOrURL;
             builtinProvider = provider;
             signer = provider.getSigner();
         }
@@ -32,10 +35,12 @@ export default {
         window.provider = provider;
         window.signer = signer;
         window.builtinProvider = builtinProvider;
+        window.web3Provider = web3ProviderGiven;
         return {
             provider,
             signer,
             builtinProvider,
+            web3Provider,
         };
     },
     fetchChainId: () => {
