@@ -32,10 +32,13 @@ export default {
         }
 
         // TODO remove (debug)
-        window.provider = provider;
-        window.signer = signer;
-        window.builtinProvider = builtinProvider;
-        window.web3Provider = web3ProviderGiven;
+        if (typeof window !== 'undefined') {
+            window.provider = provider;
+            window.signer = signer;
+            window.builtinProvider = builtinProvider;
+            window.web3Provider = web3ProviderGiven;
+        }
+
         return {
             provider,
             signer,

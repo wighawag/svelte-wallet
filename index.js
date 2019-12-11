@@ -34,7 +34,9 @@ const $wallet = {
     status: 'Loading',
     requestingTx: false, // TODO rename waitingTxConfirmation or add steps // number of block confirmation, etc...
 };
-window.$wallet = $wallet;
+if (typeof window !== 'undefined') {
+    window.$wallet = $wallet;
+}
 export default (svelteStore, log) => {
     const { writable } = svelteStore
     if(!log) {
@@ -51,11 +53,15 @@ export default (svelteStore, log) => {
     let _ethereum;
     
     function reloadPage(reason, instant) {
-        log.info((instant ? 'instant ' : '') + 'reloading page because ' + reason);
-        if (instant) {
-            window.location.reload();
+        if (typeof window !== 'undefined') {
+            log.info((instant ? 'instant ' : '') + 'reloading page because ' + reason);
+            if (instant) {
+                window.location.reload();
+            } else {
+                setTimeout(() => window.location.reload(), 100);
+            }
         } else {
-            setTimeout(() => window.location.reload(), 100);
+            // TODO ?
         }
     }
 
@@ -72,10 +78,12 @@ export default (svelteStore, log) => {
     _set($wallet);
 
     function getEthereum() {
-        if (window.ethereum) {
-            return window.ethereum;
-        } else if (window.web3) {
-            return window.web3.currentProvider;
+        if (typeof window !== 'undefined') {
+            if (window.ethereum) {
+                return window.ethereum;
+            } else if (window.web3) {
+                return window.web3.currentProvider;
+            }
         }
         return null;
     }
@@ -171,6 +179,7 @@ export default (svelteStore, log) => {
 
             checkChain(newChainId);
         }
+
         if (web3Provider) { // TODO only if builtin is chosen // can use onNetworkChanged / onChainChanged / onAccountChanged events for specific web3 provuder setup
             try {
                 web3Provider.once('accountsChanged', checkAccounts);

@@ -25,6 +25,10 @@ function isNewChrome () {
 /// from https://github.com/jLynx/PrivateWindowCheck (see https://stackoverflow.com/questions/2860879/detecting-if-a-browser-is-using-private-browsing-mode/55231766#55231766)
 function isPrivateWindow() {
     return new Promise(function (resolve, reject) {
+        if (typeof window === 'undefined') {
+            resolve(false);
+            return;
+        }
         try {
             const isSafari = navigator.vendor && navigator.vendor.indexOf('Apple') > -1 &&
                    navigator.userAgent &&
