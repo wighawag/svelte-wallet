@@ -2,6 +2,64 @@ import eth from './eth';
 import { isPrivateWindow } from './web';
 import { Wallet } from 'ethers';
 
+function noop() {}
+function safe_not_equal(a, b) {
+	return a != a ? b == b : a !== b || ((a && typeof a === 'object') || typeof a === 'function');
+}
+const subscriber_queue = [];
+function writable(value, start) {
+    if (!start) { start = noop; }
+	let stop;
+	const subscribers = [];
+
+	function set(new_value) {
+		if (safe_not_equal(value, new_value)) {
+			value = new_value;
+			if (stop) { // store is ready
+				const run_queue = !subscriber_queue.length;
+				for (let i = 0; i < subscribers.length; i += 1) {
+					const s = subscribers[i];
+					s[1]();
+					subscriber_queue.push(s, value);
+				}
+				if (run_queue) {
+					for (let i = 0; i < subscriber_queue.length; i += 2) {
+						subscriber_queue[i][0](subscriber_queue[i + 1]);
+					}
+					subscriber_queue.length = 0;
+				}
+			}
+		}
+	}
+
+	function update(fn){
+		set(fn(value));
+	}
+
+	function subscribe(run, invalidate) {
+        if (!invalidate) { invalidate = noop; }
+		const subscriber = [run, invalidate];
+		subscribers.push(subscriber);
+		if (subscribers.length === 1) {
+			stop = start(set) || noop;
+		}
+		run(value);
+
+		return () => {
+			const index = subscribers.indexOf(subscriber);
+			if (index !== -1) {
+				subscribers.splice(index, 1);
+			}
+			if (subscribers.length === 0) {
+				stop();
+				stop = null;
+			}
+		};
+	}
+
+	return { set, update, subscribe };
+}
+
 // TODO add timeout for settinpu Wallet // getting accounts, etc...
 // TODO deal with error and error recovery
 // error as notification, revert to previous state
@@ -37,8 +95,7 @@ const $wallet = {
 if (typeof window !== 'undefined') {
     window.$wallet = $wallet;
 }
-export default (svelteStore, log) => {
-    const { writable } = svelteStore
+export default (log) => {
     if(!log) {
         log = voidLog;
     }
@@ -446,6 +503,9 @@ export default (svelteStore, log) => {
                     address: undefined,
                 });
             } else {
+                try{
+                    localStorage.removeItem('__last_wallet_used');
+                }catch(e){}
                 _set({
                     status: 'WalletToChoose',
                     address: undefined,
@@ -454,6 +514,9 @@ export default (svelteStore, log) => {
                 });
             }
         } else if($wallet.walletChosen == 'local') {
+            try{
+                localStorage.removeItem('__last_wallet_used');
+            }catch(e){}
             if ($wallet.walletChoice.length > 1 && !_onlyLocal) {
                 _set({
                     status: 'WalletToChoose',
@@ -463,7 +526,19 @@ export default (svelteStore, log) => {
                 });
             }
         } else {
-            // TODO
+            try{
+                localStorage.removeItem('__last_wallet_used');
+            }catch(e){}
+            const walletModule = _registeredWalletTypes[$wallet.walletChosen];
+            if (walletModule && walletModule.logout) {
+                await walletModule.logout();
+            }
+            _set({
+                status: 'WalletToChoose',
+                address: undefined,
+                walletChosen: undefined,
+                isLocal: undefined
+            });
         }
     }
 
@@ -520,7 +595,7 @@ export default (svelteStore, log) => {
         fallbackUrl,
         autoLocalIfBuiltinNotAvailable,
         autoBuiltinIfOnlyLocal,
-        // autoConnectIfOnlyOneChoiceAvailable,
+        removeBuiltinFromChoiceIfNotPresent,
         reuseLastWallet,
         supportedChainIds,
         registerContracts,
@@ -540,12 +615,27 @@ export default (svelteStore, log) => {
         } else if (typeof walletTypes == 'string') {
             walletTypes = [walletTypes];
         }
-        const allWalletTypes = [...walletTypes];
-        for (const walletType of allWalletTypes) {
+
+        try {
+            _ethereum = await fetchEthereum();
+        } catch(e) {
+            log.error('error getting access to window.ethereum' , e);
+            // TODO error or not ? // TODO potentialError vs criticalError
+        }
+        const vendor = getWalletVendor(_ethereum);
+        const builtinWalletPresent = vendor ? vendor : false;
+
+        const allWalletTypes = [];
+        for (const walletType of walletTypes) {
+            let walletTypeId;
             if(typeof walletType == 'string') {
-                _registeredWalletTypes[walletType] = walletType;
+                walletTypeId = walletType;
             } else {
-                _registeredWalletTypes[walletType.id] = walletType;
+                walletTypeId = walletType.id;
+            }
+            if (!(removeBuiltinFromChoiceIfNotPresent && walletTypeId == 'builtin' && !builtinWalletPresent)) {
+                _registeredWalletTypes[walletTypeId] = walletType;
+                allWalletTypes.push(walletType);
             }
         }
         let lastWalletUsed;
@@ -575,15 +665,6 @@ export default (svelteStore, log) => {
                 allWalletTypes.push(walletType);
             }
         }
-              
-        try {
-            _ethereum = await fetchEthereum();
-        } catch(e) {
-            log.error('error getting access to window.ethereum' , e);
-            // TODO error or not ? // TODO potentialError vs criticalError
-        }
-        const vendor = getWalletVendor(_ethereum);
-        const builtinWalletPresent = vendor ? vendor : false;
 
         const walletChoice = [];
         let onlyBuiltInAndLocal = true;
