@@ -51,6 +51,8 @@ export default (svelteStore, log) => {
     let _supportedChainIds;
     const _registeredWalletTypes = {};
     let _ethereum;
+    let _onlyLocal;
+    let _onlyBuiltin;
     
     function reloadPage(reason, instant) {
         if (typeof window !== 'undefined') {
@@ -153,7 +155,7 @@ export default (svelteStore, log) => {
             }
         }
         async function watchAccounts() {
-            if ($wallet.status === 'Locked' || $wallet.status === 'Unlocking') {
+            if ($wallet.status === 'WalletToChoose' || $wallet.status === 'Locked' || $wallet.status === 'Unlocking') {
                 return; // skip as Unlock / post-Unlocking will fetch the account
             }
             let accounts;
@@ -237,10 +239,21 @@ export default (svelteStore, log) => {
         ])
     }
 
+    function _recordUse(walletTypeId) {
+        _set({
+            walletChosen: walletTypeId,
+        });
+        try {
+            localStorage.setItem('__last_wallet_used', walletTypeId);
+        } catch(e){}
+    }
+
     async function _useBuiltinWallet(ethereum, unlock, isRetry) {
         if (!ethereum) {
             throw new Error('no ethereum provided');
         }
+        _recordUse('builtin');
+        
         let opera_enabled_before = false;
         const isOperaWallet = $wallet.vendor === 'Opera';
         if (isOperaWallet) {
@@ -387,6 +400,7 @@ export default (svelteStore, log) => {
 
     async function _useOrCreateLocalWallet(localKey) {
         if(_fallbackUrl) {
+            _recordUse('local');
             let ethersWallet;
             if (localKey) {
                 log.trace('using localkey', localKey);
@@ -424,6 +438,35 @@ export default (svelteStore, log) => {
         return $wallet;
     }
 
+    async function logout() {
+        if ($wallet.walletChosen == 'builtin') {
+            if ($wallet.walletChoice.length == 1 || _onlyBuiltin) {
+                _set({
+                    status: 'Locked',
+                    address: undefined,
+                });
+            } else {
+                _set({
+                    status: 'WalletToChoose',
+                    address: undefined,
+                    walletChosen: undefined,
+                    isLocal: false
+                });
+            }
+        } else if($wallet.walletChosen == 'local') {
+            if ($wallet.walletChoice.length > 1 && !_onlyLocal) {
+                _set({
+                    status: 'WalletToChoose',
+                    address: undefined,
+                    walletChosen: undefined,
+                    isLocal: undefined
+                });
+            }
+        } else {
+            // TODO
+        }
+    }
+
     async function use(walletTypeId, loadingTime) {
         if(!loadingTime) {
             _set({status: 'SettingUpWallet'});
@@ -438,6 +481,7 @@ export default (svelteStore, log) => {
         } else if (walletTypeId == 'local') {
             return _useOrCreateLocalWallet(true); // TODO
         }
+        _recordUse(walletTypeId);
         let chainId;
         if(_fallbackUrl) {
             _ethSetup = eth._setup(_fallbackUrl);
@@ -472,8 +516,17 @@ export default (svelteStore, log) => {
         
     }
 
-    // TODO autoConnectIfOnlyOneChoiceAvailable ? onlyOneChoice provdied as config ?
-    async function _load({ fallbackUrl, autoConnectIfOnlyOneChoiceAvailable, reuseLastWallet, supportedChainIds, registerContracts, walletTypes, fetchInitialBalance}, isRetry) {
+    async function _load({ 
+        fallbackUrl,
+        autoLocalIfBuiltinNotAvailable,
+        autoBuiltinIfOnlyLocal,
+        // autoConnectIfOnlyOneChoiceAvailable,
+        reuseLastWallet,
+        supportedChainIds,
+        registerContracts,
+        walletTypes,
+        fetchInitialBalance
+    }, isRetry) {
         _fallbackUrl = fallbackUrl;
         _registerContracts = registerContracts;
         _fetchInitialBalance = fetchInitialBalance;
@@ -487,8 +540,8 @@ export default (svelteStore, log) => {
         } else if (typeof walletTypes == 'string') {
             walletTypes = [walletTypes];
         }
-        const originalWalletTypes = [...walletTypes];
-        for (const walletType of walletTypes) {
+        const allWalletTypes = [...walletTypes];
+        for (const walletType of allWalletTypes) {
             if(typeof walletType == 'string') {
                 _registeredWalletTypes[walletType] = walletType;
             } else {
@@ -497,15 +550,29 @@ export default (svelteStore, log) => {
         }
         let lastWalletUsed;
         if (reuseLastWallet) {
-            // TODO localStorage
+            try{
+                lastWalletUsed = localStorage.getItem('__last_wallet_used');
+            } catch(e){}
         }
         if (lastWalletUsed && !_registeredWalletTypes[lastWalletUsed]) { // allow recover even if configuration change
             if(lastWalletUsed == 'builtin' || lastWalletUsed == 'local') {
-                walletTypes.push(lastWalletUsed);
+                allWalletTypes.push(lastWalletUsed);
                 _registeredWalletTypes[lastWalletUsed] = lastWalletUsed;
             } else {
                 console.error('cannot reuse wallet type', lastWalletUsed);
                  // TODO error
+            }
+        }
+
+        if (!_registeredWalletTypes['local']) {
+            let privateKey
+            try {
+                privateKey = localStorage.getItem('__wallet_priv');
+            } catch(e) {}
+            if (privateKey) {
+                const walletType = {id: 'local', privateKey};
+                _registeredWalletTypes['local'] = walletType;
+                allWalletTypes.push(walletType);
             }
         }
               
@@ -515,27 +582,36 @@ export default (svelteStore, log) => {
             log.error('error getting access to window.ethereum' , e);
             // TODO error or not ? // TODO potentialError vs criticalError
         }
-        const builtinWalletPresent = Boolean(_ethereum);
         const vendor = getWalletVendor(_ethereum);
-
-        if (!builtinWalletPresent) {
-            const indexOfBuiltin = walletTypes.indexOf('builtin');
-            if (indexOfBuiltin != -1) {
-                walletTypes.splice(indexOfBuiltin, 1);
-            }
-        }
+        const builtinWalletPresent = vendor ? vendor : false;
 
         const walletChoice = [];
-        for (const walletType of walletTypes) {
+        let onlyBuiltInAndLocal = true;
+        let builtInInThere = false;
+        let localInThere = false;
+        for (const walletType of allWalletTypes) {
+            let walletTypeId;
             if(typeof walletType == 'string') {
-                walletChoice.push(walletType);
+                walletTypeId = walletType;
             } else {
-                walletChoice.push(walletType.id);
+                walletTypeId = walletType.id;
             }
+            if (walletTypeId == 'local') {
+                localInThere = true;
+            } else if (walletTypeId == 'builtin') {
+                builtInInThere = true;
+            } else {
+                onlyBuiltInAndLocal = false;
+            }
+            walletChoice.push(walletTypeId);
         }
+        onlyBuiltInAndLocal = onlyBuiltInAndLocal && builtInInThere && localInThere;
+
+        _onlyLocal = autoLocalIfBuiltinNotAvailable && onlyBuiltInAndLocal && !builtinWalletPresent;
+        _onlyBuiltin = autoBuiltinIfOnlyLocal && onlyBuiltInAndLocal && builtinWalletPresent;
 
         _set({
-            vendor,
+            // vendor,
             builtinWalletPresent,
             walletChoice
         });
@@ -550,9 +626,16 @@ export default (svelteStore, log) => {
                 }
             }
         }
-        if (originalWalletTypes.length == 1 || (autoConnectIfOnlyOneChoiceAvailable && walletTypes.length == 1)) {
-            walletTypeToUse = walletTypes[0].id || walletTypes[0];
+        if (!walletTypeToUse) {
+            if (allWalletTypes.length == 1) {
+                walletTypeToUse = allWalletTypes[0].id || allWalletTypes[0];
+            } else if (_onlyLocal) {
+                walletTypeToUse = 'local';
+            } else if (_onlyBuiltin) {
+                walletTypeToUse = 'builtin';
+            }
         }
+        
         if (walletTypeToUse) {
             if(walletTypeToUse == 'builtin') {
                 if(builtinWalletPresent) {
@@ -572,9 +655,19 @@ export default (svelteStore, log) => {
                 use(walletTypeToUse, true);
             }
         } else {
-            _set({
-                status: 'WalletToChoose',
-            });
+            if (_onlyBuiltin && !builtinWalletPresent) {
+                _set({
+                    status: 'NoWallet',
+                });
+            } else if (allWalletTypes.length > 0) {
+                _set({
+                    status: 'WalletToChoose',
+                });
+            } else {
+                _set({
+                    status: 'NoWallet',
+                });
+            }
         }
         return $wallet;
     }
@@ -696,8 +789,8 @@ export default (svelteStore, log) => {
         //     const balance = await _ethSetup.provider.getBalance(ethersWallet.address);
         //     const nonce = await _ethSetup.provider.getTransactionCount(ethersWallet.address);
         //     if(balance.eq(0) && nonce === 0) {
+            //         localStorage.removeItem('__wallet_priv');
         //         log.trace('zero wallet detected, reseting...');
-        //         localStorage.removeItem('__wallet_priv');
         //         if(resetZeroWallet.createNew) {
         //             log.trace('creating a new wallet');
         //             await createLocalWallet()
@@ -879,6 +972,7 @@ export default (svelteStore, log) => {
         call,
         createLocalWallet,
         use,
+        logout,
         getProvider: () => _ethSetup.provider,
         reloadPage: () => reloadPage('requested', true),
         getContract: (name) => {

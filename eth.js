@@ -43,7 +43,7 @@ export default {
             provider,
             signer,
             builtinProvider,
-            web3Provider,
+            web3Provider: web3ProviderGiven,
         };
     },
     fetchChainId: () => {
