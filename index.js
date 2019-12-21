@@ -616,15 +616,34 @@ export default (log) => {
             walletTypes = [walletTypes];
         }
 
-        try {
-            _ethereum = await fetchEthereum();
-        } catch(e) {
-            log.error('error getting access to window.ethereum' , e);
-            // TODO error or not ? // TODO potentialError vs criticalError
+        // TODO better (remove duplicare loops below)
+        let builtinAsChoice = false;
+        for (const walletType of walletTypes) {
+            let walletTypeId;
+            if(typeof walletType == 'string') {
+                walletTypeId = walletType;
+            } else {
+                walletTypeId = walletType.id;
+            }
+            if (walletTypeId == 'builtin') {
+                builtinAsChoice = true;
+                break;
+            }
         }
-        const vendor = getWalletVendor(_ethereum);
-        const builtinWalletPresent = vendor ? vendor : false;
 
+        let vendor;
+        let builtinWalletPresent;
+        if (builtinAsChoice) {
+            try {
+                _ethereum = await fetchEthereum();
+            } catch(e) {
+                log.error('error getting access to window.ethereum' , e);
+                // TODO error or not ? // TODO potentialError vs criticalError
+            }
+            vendor = getWalletVendor(_ethereum);
+            builtinWalletPresent = vendor ? vendor : false;    
+        }
+        
         const allWalletTypes = [];
         for (const walletType of walletTypes) {
             let walletTypeId;
