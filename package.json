@@ -1,11 +1,24 @@
 {
   "name": "svelte-wallet",
-  "version": "0.1.0",
-  "main": "index.js",
+  "version": "0.1.1",
+  "main": "dist/svelte-wallet.cjs.js",
+  "module": "dist/svelte-wallet.esm.js",
+  "browser": "dist/svelte-wallet.umd.js",
   "repository": "git@github.com:wighawag/svelte-wallet.git",
   "author": "Wighawag <wighawag@gmail.com>",
   "license": "MIT",
   "dependencies": {
     "ethers": "^5.0.0-beta.158"
+  },
+  "devDependencies": {
+    "rollup": "^1.20.0",
+    "rollup-plugin-commonjs": "^10.0.0",
+    "rollup-plugin-node-resolve": "^5.1.0"
+  },
+  "scripts": {
+    "build": "rollup -c",
+    "dev": "rollup -c -w",
+    "test": "node test/test.js",
+    "pretest": "yarn run build"
   }
 }
