@@ -496,7 +496,7 @@ var index = (log) => {
         _recordUse('builtin');
         
         let opera_enabled_before = false;
-        const isOperaWallet = $wallet.vendor === 'Opera';
+        const isOperaWallet = $wallet.builtinWalletPresent === 'Opera';
         if (isOperaWallet) {
             opera_enabled_before = localStorage.getItem('opera_wallet_enabled');
             if (!opera_enabled_before && !isRetry) {
@@ -873,7 +873,6 @@ var index = (log) => {
         _onlyBuiltin = autoBuiltinIfOnlyLocal && onlyBuiltInAndLocal && builtinWalletPresent;
 
         _set({
-            // vendor,
             builtinWalletPresent,
             walletChoice
         });
@@ -1213,6 +1212,16 @@ var index = (log) => {
         return tx;
     }
 
+    async function sign(msgParams) {
+        const w = await ensureEnabled();
+        if (!w || !w.address) {
+            throw new Error('Can\'t sign message'); // TODO more meaningful answer (user rejected?)
+        }
+        var params = [w.address, msgParams];
+        var method = 'eth_signTypedData_v3';
+        return _ethSetup.provider.send(method, params);
+    }
+
     function emitTransaction(tx, chainId, address) {
         for (let callback of transactionCallbacks) {
             callback(tx, chainId, address);
@@ -1231,6 +1240,7 @@ var index = (log) => {
         subscribe,
         onTransactionBroadcasted,
         tx,
+        sign,
         call,
         createLocalWallet,
         use,
