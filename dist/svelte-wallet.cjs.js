@@ -8,7 +8,7 @@ let signer;
 let builtinProvider;
 
 var eth = {
-    _setup: (web3ProviderOrURL, web3Provider, privateKey) => { // TODO rename web3Provider/web3ProviderOrURL to web3Provider/...
+    _setup: (web3ProviderOrURL, web3Provider, privateKey, fallbackURL) => { // TODO rename web3Provider/web3ProviderOrURL to web3Provider/...
         let web3ProviderGiven;
         contracts = {};
         provider = undefined;
@@ -46,6 +46,7 @@ var eth = {
             signer,
             builtinProvider,
             web3Provider: web3ProviderGiven,
+            fallbackProvider: fallbackURL ? new ethers.providers.JsonRpcProvider(fallbackURL) : undefined,
         };
     },
     fetchChainId: () => {
@@ -361,7 +362,7 @@ var index = (log) => {
                     }
                 } else {
                     // if($wallet.readOnly) { // TODO check if it can reach there ?
-                    //     _ethSetup = eth._setup(web3Provider);
+                    //     _ethSetup = eth._setup(web3Provider, undefined, undefined, _fallbackUrl);
                     // }
                     let initialBalance;
                     if(_fetchInitialBalance) {
@@ -378,7 +379,7 @@ var index = (log) => {
             } else {
                 if ($wallet.address) {
                     // if($wallet.readOnly) {  // TODO check if it can reach there ?
-                    //     _ethSetup = eth._setup(web3Provider);
+                    //     _ethSetup = eth._setup(web3Provider, undefined, undefined, _fallbackUrl);
                     // }
                     _set({
                         address: undefined,
@@ -507,7 +508,7 @@ var index = (log) => {
             }
         }
         
-        _ethSetup = eth._setup(ethereum);
+        _ethSetup = eth._setup(ethereum, undefined, undefined, _fallbackUrl);
         // log.info('web3 is there...');
         // log.info('checking chainId...');
         let chainId;
@@ -521,7 +522,7 @@ var index = (log) => {
             }
             log.error('builtin wallet : error fetching chainId', e);
             if(_fallbackUrl) {
-                _ethSetup = eth._setup(_fallbackUrl, ethereum);
+                _ethSetup = eth._setup(_fallbackUrl, ethereum, undefined, _fallbackUrl);
             }
             if (isOperaWallet) {
                 log.info('Opera web3 quircks');
@@ -563,7 +564,7 @@ var index = (log) => {
         if (_supportedChainIds && _supportedChainIds.indexOf(chainId) == -1) {
             let readOnly;
             if(_fallbackUrl) {
-                _ethSetup = eth._setup(_fallbackUrl, ethereum);
+                _ethSetup = eth._setup(_fallbackUrl, ethereum, undefined, _fallbackUrl);
                 const fallbackChainId = await eth.fetchChainId();
                 if (_registerContracts) {
                     try {
@@ -743,7 +744,7 @@ var index = (log) => {
         _recordUse(walletTypeId);
         let chainId;
         if(_fallbackUrl) {
-            _ethSetup = eth._setup(_fallbackUrl);
+            _ethSetup = eth._setup(_fallbackUrl, undefined, undefined, _fallbackUrl);
             chainId = await eth.fetchChainId();
         }
         if (!chainId) {
@@ -755,7 +756,7 @@ var index = (log) => {
         _set({ chainId });
         log.trace('setting up web3 provider');
         // TODO record chainId //assume module us behaving correctly
-        _ethSetup = eth._setup(web3Provider); // TODO check if eth._setup assume builtin behaviour ?
+        _ethSetup = eth._setup(web3Provider, undefined, undefined, _fallbackUrl); // TODO check if eth._setup assume builtin behaviour ?
         log.trace('fetching accounts');
         if (_ethSetup && _registerContracts) {
             const contractsInfo = await _registerContracts($wallet);
@@ -1044,7 +1045,7 @@ var index = (log) => {
     
     async function setupLocalWallet(ethersWallet, resetZeroWallet) {
         log.trace('setting up local wallet...', ethersWallet);
-        _ethSetup = eth._setup(_fallbackUrl, null, ethersWallet ? ethersWallet.privateKey : undefined);
+        _ethSetup = eth._setup(_fallbackUrl, null, ethersWallet ? ethersWallet.privateKey : undefined, _fallbackUrl);
         
         // if(ethersWallet && resetZeroWallet) { // TODO if dev
         //     const balance = await _ethSetup.provider.getBalance(ethersWallet.address);
@@ -1271,6 +1272,7 @@ var index = (log) => {
         use,
         logout,
         getProvider: () => _ethSetup.provider,
+        getFallbackProvider: () => _ethSetup.fallbackProvider,
         reloadPage: () => reloadPage('requested', true),
         getContract: (name) => {
             const ethersContract = contracts[name];
