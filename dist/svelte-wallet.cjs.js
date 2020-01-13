@@ -120,7 +120,7 @@ function isNewChrome () {
     if (pieces == null || pieces.length != 5) {
         return undefined;
     }
-    major = pieces.map(piece => parseInt(piece, 10))[1];
+    const major = pieces.map(piece => parseInt(piece, 10))[1];
 	if(major >= 76) {
         return true
     }
