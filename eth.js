@@ -6,7 +6,7 @@ let signer;
 let builtinProvider;
 
 export default {
-    _setup: (web3ProviderOrURL, web3Provider, privateKey) => { // TODO rename web3Provider/web3ProviderOrURL to web3Provider/...
+    _setup: (web3ProviderOrURL, web3Provider, privateKey, fallbackURL) => { // TODO rename web3Provider/web3ProviderOrURL to web3Provider/...
         let web3ProviderGiven;
         contracts = {};
         provider = undefined;
@@ -44,6 +44,7 @@ export default {
             signer,
             builtinProvider,
             web3Provider: web3ProviderGiven,
+            fallbackProvider: fallbackURL ? new ethers.providers.JsonRpcProvider(fallbackURL) : undefined,
         };
     },
     fetchChainId: () => {
