@@ -1141,6 +1141,16 @@ var index = (log) => {
         await setupLocalWallet(ethersWallet);
     }
 
+    async function computeData(contract, methodName, ...args) {
+        if (typeof args === 'undefined') {
+            args = [];
+        }
+
+        const ethersContract = contracts[contract];
+        const data = ethersContract.populateTransaction[methodName](...args);
+        return data;
+    }
+
     async function tx(options, contract, methodName, ...args) {
         const w = await ensureEnabled();
         if (!w || !w.address) {
@@ -1219,7 +1229,21 @@ var index = (log) => {
         }
         var params = [w.address, msgParams];
         var method = 'eth_signTypedData_v3';
-        return _ethSetup.provider.send(method, params);
+        _set({
+            requestingTx: true,
+        });
+        let response;
+        try {
+            response = await _ethSetup.provider.send(method, params);
+        } catch(e) {
+            log.error('error making tx', e);
+            response = null;
+        } finally {
+            _set({
+                requestingTx: false, // TODO rename
+            });
+        }
+        return response;
     }
 
     function emitTransaction(tx, chainId, address) {
@@ -1240,6 +1264,7 @@ var index = (log) => {
         subscribe,
         onTransactionBroadcasted,
         tx,
+        computeData,
         sign,
         call,
         createLocalWallet,

@@ -960,6 +960,16 @@ export default (log) => {
         await setupLocalWallet(ethersWallet);
     }
 
+    async function computeData(contract, methodName, ...args) {
+        if (typeof args === 'undefined') {
+            args = [];
+        }
+
+        const ethersContract = contracts[contract];
+        const data = ethersContract.populateTransaction[methodName](...args);
+        return data;
+    }
+
     async function tx(options, contract, methodName, ...args) {
         const w = await ensureEnabled();
         if (!w || !w.address) {
@@ -1073,6 +1083,7 @@ export default (log) => {
         subscribe,
         onTransactionBroadcasted,
         tx,
+        computeData,
         sign,
         call,
         createLocalWallet,
