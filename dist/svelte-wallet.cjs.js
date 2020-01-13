@@ -1231,7 +1231,7 @@ var index = (log) => {
         var params = [w.address, msgParams];
         var method = 'eth_signTypedData_v3';
         _set({
-            requestingTx: true,
+            requestingSignature: true,
         });
         let response;
         try {
@@ -1241,7 +1241,7 @@ var index = (log) => {
             response = null;
         } finally {
             _set({
-                requestingTx: false, // TODO rename
+                requestingSignature: false,
             });
         }
         return response;
