@@ -792,7 +792,7 @@ var index = (log) => {
         _registerContracts = registerContracts;
         _fetchInitialBalance = fetchInitialBalance;
         _supportedChainIds = supportedChainIds; // TODO clone ?
-        _set({ status: 'Loading', _supportedChainIds });
+        _set({ status: 'Loading', supportedChainIds: _supportedChainIds });
         if (isRetry) { // this only concern builtin wallets // TODO rename ? or use `use('builtin')` instead of retry flow ?
             walletTypes = ['builtin'];
         }
