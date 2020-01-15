@@ -19563,8 +19563,31 @@
           }
           _registerContracts = registerContracts;
           _fetchInitialBalance = fetchInitialBalance;
-          _supportedChainIds = supportedChainIds; // TODO clone ?
-          _set({ status: 'Loading', supportedChainIds: _supportedChainIds });
+          _supportedChainIds = [];
+          const supportedChains = [];
+          function getChainName(chainId) {
+              if (chainId == '4') {
+                  return 'Rinkeby';
+              } else if (chainId == '1') {
+                  return 'Ethereum Mainnet';
+              } else if (chainId == '42') {
+                  return 'Kovan';
+              } else if (chainId == '5') {
+                  return 'Görli';
+              } else {
+                  return 'chain with id \'' + chainId + '\'';
+              }
+          }
+          for (let supportedChainId of supportedChainIds) {
+              _supportedChainIds.push(supportedChainId);
+              supportedChains.push({
+                  id: supportedChainId,
+                  name: getChainName(supportedChainId),
+                  url: undefined // TODO setting to pass (not hardcoded in svelte-wallet)
+              });
+              
+          }
+          _set({ status: 'Loading', supportedChains });
           if (isRetry) { // this only concern builtin wallets // TODO rename ? or use `use('builtin')` instead of retry flow ?
               walletTypes = ['builtin'];
           }
