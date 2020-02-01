@@ -1258,7 +1258,7 @@ var index = (log) => {
         return tx;
     }
 
-    async function signPersonalMessage(msg) {
+    async function signPersonalMessageInHex(msg) {
         const w = await ensureEnabled();
         if (!w || !w.address) {
             throw new Error('Can\'t sign message'); // TODO more meaningful answer (user rejected?)
@@ -1281,6 +1281,14 @@ var index = (log) => {
             });
         }
         return response;
+    }
+
+    async function signPersonalMessage(msg) {
+        const w = await ensureEnabled();
+        if (!w || !w.address) {
+            throw new Error('Can\'t sign message'); // TODO more meaningful answer (user rejected?)
+        }
+        return _ethSetup.signer.signMessage(msg);
     }
 
     async function signTypedData_v3(msgParams) {
@@ -1329,6 +1337,7 @@ var index = (log) => {
         sign : signTypedData_v3, // TODO deprecate
         signTypedData_v3,
         signPersonalMessage,
+        signPersonalMessageInHex,
         call,
         createLocalWallet,
         use,
