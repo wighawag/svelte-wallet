@@ -298,7 +298,8 @@ var index = (log) => {
     let _ethereum;
     let _onlyLocal;
     let _onlyBuiltin;
-    
+    let _accountFetchTimeout;
+
     function reloadPage(reason, instant) {
         if (typeof window !== 'undefined') {
             log.info((instant ? 'instant ' : '') + 'reloading page because ' + reason);
@@ -469,7 +470,7 @@ var index = (log) => {
         ])
     }
 
-    function fetchChainIdWithTimeout(eth, ms = 2000) {
+    function fetchChainIdWithTimeout(eth, ms = 10000) {
         let timeout = new Promise((resolve, reject) => { // TODO use `withTimeout(...)`
             let id = setTimeout(() => {
               clearTimeout(id);
@@ -607,9 +608,14 @@ var index = (log) => {
         let accounts;
         try {
             log.trace('getting accounts..');
-            accounts = await withTimeout(2000, eth.fetchAccounts());
+            if (_accountFetchTimeout) {
+                accounts = await withTimeout(_accountFetchTimeout * 1000, eth.fetchAccounts());
+            } else {
+                accounts = await eth.fetchAccounts();
+            }
             log.trace(`accounts : ${accounts}`);
         } catch (e) {
+            console.error('ERROR', e);
             // TODO timeout error
             if(e.type == 'timeout') {
                 throw e;
@@ -775,6 +781,7 @@ var index = (log) => {
     }
 
     async function _load({ 
+        accountFetchTimeout,
         fallbackUrl,
         autoLocalIfBuiltinNotAvailable,
         autoBuiltinIfOnlyLocal,
@@ -785,6 +792,7 @@ var index = (log) => {
         walletTypes,
         fetchInitialBalance
     }, isRetry) {
+        _accountFetchTimeout = accountFetchTimeout;
         _fallbackUrl = fallbackUrl;
         if (fallbackUrl) {
             _fallbackProvider = new ethers.providers.JsonRpcProvider(fallbackUrl);
@@ -1250,7 +1258,32 @@ var index = (log) => {
         return tx;
     }
 
-    async function sign(msgParams) {
+    async function signPersonalMessage(msg) {
+        const w = await ensureEnabled();
+        if (!w || !w.address) {
+            throw new Error('Can\'t sign message'); // TODO more meaningful answer (user rejected?)
+        }
+        msg = "0x" + new Buffer('' + msg, "utf8").toString("hex");
+        var params = [msg, w.address];
+        var method = 'personal_sign';
+        _set({
+            requestingSignature: true,
+        });
+        let response;
+        try {
+            response = await _ethSetup.provider.send(method, params);
+        } catch(e) {
+            log.error('error making signed message', e);
+            response = null;
+        } finally {
+            _set({
+                requestingSignature: false,
+            });
+        }
+        return response;
+    }
+
+    async function signTypedData_v3(msgParams) {
         const w = await ensureEnabled();
         if (!w || !w.address) {
             throw new Error('Can\'t sign message'); // TODO more meaningful answer (user rejected?)
@@ -1293,11 +1326,14 @@ var index = (log) => {
         onTransactionBroadcasted,
         tx,
         computeData,
-        sign,
+        sign : signTypedData_v3, // TODO deprecate
+        signTypedData_v3,
+        signPersonalMessage,
         call,
         createLocalWallet,
         use,
         logout,
+        getAddress: () => $wallet.address,
         getProvider: () => _ethSetup.provider,
         getFallbackProvider: () => _fallbackProvider,
         reloadPage: () => reloadPage('requested', true),
