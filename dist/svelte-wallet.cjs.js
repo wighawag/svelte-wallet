@@ -781,6 +781,7 @@ var index = (log) => {
     }
 
     async function _load({ 
+        autoConnectWhenOnlyOneChoice,
         accountFetchTimeout,
         fallbackUrl,
         autoLocalIfBuiltinNotAvailable,
@@ -792,6 +793,9 @@ var index = (log) => {
         walletTypes,
         fetchInitialBalance
     }, isRetry) {
+        if (typeof autoConnectWhenOnlyOneChoice== 'undefined') {
+            autoConnectWhenOnlyOneChoice = true;
+        }
         _accountFetchTimeout = accountFetchTimeout;
         _fallbackUrl = fallbackUrl;
         if (fallbackUrl) {
@@ -924,7 +928,7 @@ var index = (log) => {
             }
         }
         if (!walletTypeToUse) {
-            if (allWalletTypes.length == 1) {
+            if (allWalletTypes.length == 1 && autoConnectWhenOnlyOneChoice) {
                 walletTypeToUse = allWalletTypes[0].id || allWalletTypes[0];
             } else if (_onlyLocal) {
                 walletTypeToUse = 'local';
