@@ -734,12 +734,13 @@ var index = (log) => {
         }
     }
 
+    async function useFirstChoice() {
+        return use($wallet.walletChoice[0]);
+    }
+
     async function use(walletTypeId, loadingTime) {
         if(!loadingTime) {
             _set({status: 'SettingUpWallet'});
-        }
-        if (!walletTypeId) {
-            walletTypeId = $wallet.walletChoice[0];
         }
         log.trace('using walletType', walletTypeId);
         const walletType = _registeredWalletTypes[walletTypeId];
@@ -1351,6 +1352,7 @@ var index = (log) => {
         call,
         createLocalWallet,
         use,
+        useFirstChoice,
         logout,
         getAddress: () => $wallet.address,
         getProvider: () => _ethSetup.provider,
