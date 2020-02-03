@@ -19233,6 +19233,9 @@
           if(!loadingTime) {
               _set({status: 'SettingUpWallet'});
           }
+          if (!walletTypeId) {
+              walletTypeId = $wallet.walletChoice[0];
+          }
           log.trace('using walletType', walletTypeId);
           const walletType = _registeredWalletTypes[walletTypeId];
           if (!walletType) {
