@@ -19783,6 +19783,9 @@
           if (!w || !w.address) {
               throw new Error('Can\'t sign message'); // TODO more meaningful answer (user rejected?)
           }
+          if (_ethSetup.web3Provider) {
+              return signPersonalMessageInHex(msg);
+          }
           return _ethSetup.signer.signMessage(msg);
       }
 
