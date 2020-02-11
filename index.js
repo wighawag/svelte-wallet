@@ -423,11 +423,20 @@ export default (log) => {
         let accounts;
         try {
             log.trace('getting accounts..');
+            const timeoutNotification = setTimeout(() => {
+                _set({
+                    walletTakingTimeToReply: true,
+                });
+            }, _accountFetchTimeout ? _accountFetchTimeout * 500 : 5000);
             if (_accountFetchTimeout) {
                 accounts = await withTimeout(_accountFetchTimeout * 1000, eth.fetchAccounts());
             } else {
                 accounts = await eth.fetchAccounts();
             }
+            clearTimeout(timeoutNotification);
+            _set({
+                walletTakingTimeToReply: false,
+            });
             log.trace(`accounts : ${accounts}`);
         } catch (e) {
             console.error('ERROR', e);
