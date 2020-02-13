@@ -421,9 +421,10 @@ export default (log) => {
 
     async function _fetchAccountAndWatch(provider, autoUnlock) {
         let accounts;
+        let timeoutNotification;
         try {
             log.trace('getting accounts..');
-            const timeoutNotification = setTimeout(() => {
+            timeoutNotification = setTimeout(() => {
                 _set({
                     walletTakingTimeToReply: true,
                 });
@@ -439,6 +440,12 @@ export default (log) => {
             });
             log.trace(`accounts : ${accounts}`);
         } catch (e) {
+            if (timeoutNotification) {
+                clearTimeout(timeoutNotification);
+                _set({
+                    walletTakingTimeToReply: false,
+                });
+            }
             console.error('ERROR', e);
             // TODO timeout error
             if(e.type == 'timeout') {
