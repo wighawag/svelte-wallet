@@ -606,9 +606,10 @@ var index = (log) => {
 
     async function _fetchAccountAndWatch(provider, autoUnlock) {
         let accounts;
+        let timeoutNotification;
         try {
             log.trace('getting accounts..');
-            const timeoutNotification = setTimeout(() => {
+            timeoutNotification = setTimeout(() => {
                 _set({
                     walletTakingTimeToReply: true,
                 });
@@ -624,6 +625,12 @@ var index = (log) => {
             });
             log.trace(`accounts : ${accounts}`);
         } catch (e) {
+            if (timeoutNotification) {
+                clearTimeout(timeoutNotification);
+                _set({
+                    walletTakingTimeToReply: false,
+                });
+            }
             console.error('ERROR', e);
             // TODO timeout error
             if(e.type == 'timeout') {
@@ -1224,10 +1231,15 @@ var index = (log) => {
             delete options.gas;
         }
 
+        if (typeof options.value == 'string') {
+            options.value = ethers.BigNumber.from(options.value);
+        }
+
         if (typeof args === 'undefined') {
             args = [];
         }
 
+        
         if(options.from && options.from.toLowerCase() !== $wallet.address.toLowerCase()) {
             throw new Error('from != wallet.address')
         }
@@ -1270,7 +1282,13 @@ var index = (log) => {
                 emitTransaction(pendingTx, $wallet.chainId, $wallet.address);
             }
         } else {
-            log.error('TODO send raw tx');
+            if (options.to && !ethers.utils.isAddress(options.to)) {
+                const toAddress = await _ethSetup.signer.resolveName(options.to);
+                if (!toAddress) {
+                    throw new Error('cannot resolve name : ' + options.to)
+                }
+            }
+            tx = await _ethSetup.signer.sendTransaction(options);
         }
         return tx;
     }

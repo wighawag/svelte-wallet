@@ -1049,10 +1049,15 @@ export default (log) => {
             delete options.gas;
         }
 
+        if (typeof options.value == 'string') {
+            options.value = ethers.BigNumber.from(options.value);
+        }
+
         if (typeof args === 'undefined') {
             args = [];
         }
 
+        
         if(options.from && options.from.toLowerCase() !== $wallet.address.toLowerCase()) {
             throw new Error('from != wallet.address')
         }
@@ -1095,7 +1100,13 @@ export default (log) => {
                 emitTransaction(pendingTx, $wallet.chainId, $wallet.address);
             }
         } else {
-            log.error('TODO send raw tx');
+            if (options.to && !ethers.utils.isAddress(options.to)) {
+                const toAddress = await _ethSetup.signer.resolveName(options.to);
+                if (!toAddress) {
+                    throw new Error('cannot resolve name : ' + options.to)
+                }
+            }
+            tx = await _ethSetup.signer.sendTransaction(options);
         }
         return tx;
     }

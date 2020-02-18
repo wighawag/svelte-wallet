@@ -406,10 +406,10 @@ estree-walker@^0.6.1:
   resolved "https://registry.yarnpkg.com/estree-walker/-/estree-walker-0.6.1.tgz#53049143f40c6eb918b23671d1fe3219f3a1b362"
   integrity sha512-SqmZANLWS0mnatqbSfRP5g8OXZC12Fgg1IwNtLsyHDzJizORW4khDfjPqJZsemPWBB2uqykUah5YpQ6epsqC/w==
 
-ethers@^5.0.0-beta.158:
-  version "5.0.0-beta.158"
-  resolved "https://registry.yarnpkg.com/ethers/-/ethers-5.0.0-beta.158.tgz#566ee8575dc84803c5016dcf1585ef8a40e71385"
-  integrity sha512-l01PANpe2A2S0XXdmkYbe7FAKb2qwg2U7aDZx/WEAkpiYB7PmZ3Tf+X0YQdGDjsmbcuId6kiWT7ccRzQnoq1lg==
+ethers@^5.0.0-beta.173:
+  version "5.0.0-beta.173"
+  resolved "https://registry.yarnpkg.com/ethers/-/ethers-5.0.0-beta.173.tgz#114832457dd9d768fae3da93651f9e818c508231"
+  integrity sha512-wAj6vYXL6Kgm6baLCZRJukMo/4DmHe7lMd0xLZhtc7PJbgJwiTGwjfpGxLSoj0EWFh69o0TXVQ0PDNgvfWjDyw==
   dependencies:
     "@ethersproject/abi" ">=5.0.0-beta.137"
     "@ethersproject/abstract-provider" ">=5.0.0-beta.131"
