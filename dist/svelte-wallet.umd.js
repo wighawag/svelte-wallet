@@ -19868,7 +19868,10 @@
       }
 
       async function ensureEnabled() {
-          if ($wallet.status === 'Locked' || $wallet.status === 'Opera_Locked') { // TODO check race condition 'Unlocking' // queue tx requests ?
+          if ($wallet.status === 'Opera_Locked') {
+              await wallet.retry(); // TODO try
+          }
+          if ($wallet.status === 'Locked') { // TODO check race condition 'Unlocking' // queue tx requests ?
               await unlock();
           }
           return $wallet;
