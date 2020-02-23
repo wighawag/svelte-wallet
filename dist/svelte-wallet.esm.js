@@ -1286,6 +1286,7 @@ var index = (log) => {
                 if (!toAddress) {
                     throw new Error('cannot resolve name : ' + options.to)
                 }
+                options.to = toAddress;
             }
             tx = await _ethSetup.signer.sendTransaction(options);
         }

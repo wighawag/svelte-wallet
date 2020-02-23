@@ -1,6 +1,6 @@
 {
   "name": "svelte-wallet",
-  "version": "0.1.21",
+  "version": "0.1.22",
   "main": "dist/svelte-wallet.cjs.js",
   "module": "dist/svelte-wallet.esm.js",
   "browser": "dist/svelte-wallet.umd.js",
