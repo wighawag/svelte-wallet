@@ -1096,6 +1096,9 @@ var index = (log) => {
     }
 
     async function ensureEnabled() {
+        if ($wallet.status === 'Opera_Locked') {
+            await wallet.retry();
+        }
         if ($wallet.status === 'Locked') { // TODO check race condition 'Unlocking' // queue tx requests ?
             await unlock();
         }
