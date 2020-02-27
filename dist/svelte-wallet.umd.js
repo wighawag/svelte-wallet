@@ -3454,7 +3454,7 @@
   });
   var bn_1 = bn.BN;
 
-  const version = "logger/5.0.0-beta.134";
+  const version = "logger/5.0.0-beta.135";
   let _permanentCensorErrors = false;
   let _censorErrors = false;
   const LogLevels = { debug: 1, "default": 2, info: 2, warn: 3, error: 4, off: 5 };
@@ -3496,14 +3496,6 @@
               writable: false
           });
       }
-      setLogLevel(logLevel) {
-          const level = LogLevels[logLevel];
-          if (level == null) {
-              this.warn("invalid log level - " + logLevel);
-              return;
-          }
-          LogLevel = level;
-      }
       _log(logLevel, args) {
           if (LogLevel > LogLevels[logLevel]) {
               return;
@@ -3520,8 +3512,9 @@
           this._log(Logger.levels.WARNING, args);
       }
       makeError(message, code, params) {
+          // Errors are being censored
           if (_censorErrors) {
-              return new Error("unknown error");
+              return this.makeError("censored error", code, {});
           }
           if (!code) {
               code = Logger.errors.UNKNOWN_ERROR;
@@ -3631,6 +3624,11 @@
           return _globalLogger;
       }
       static setCensorship(censorship, permanent) {
+          if (!censorship && permanent) {
+              this.globalLogger().throwError("cannot permanently disable censorship", Logger.errors.UNSUPPORTED_OPERATION, {
+                  operation: "setCensorship"
+              });
+          }
           if (_permanentCensorErrors) {
               if (!censorship) {
                   return;
@@ -3641,6 +3639,14 @@
           }
           _censorErrors = !!censorship;
           _permanentCensorErrors = !!permanent;
+      }
+      static setLogLevel(logLevel) {
+          const level = LogLevels[logLevel];
+          if (level == null) {
+              Logger.globalLogger().warn("invalid log level - " + logLevel);
+              return;
+          }
+          LogLevel = level;
       }
   }
   Logger.errors = {
@@ -4726,7 +4732,7 @@
   	Description: Description
   });
 
-  const version$4 = "abi/5.0.0-beta.145";
+  const version$4 = "abi/5.0.0-beta.146";
   const logger$4 = new Logger(version$4);
   const _constructorGuard$2 = {};
   let ModifiersBytes = { calldata: true, memory: true, storage: true };
@@ -7270,7 +7276,7 @@
       static getSighash(functionFragment) {
           return hexDataSlice(id(functionFragment.format()), 0, 4);
       }
-      static getTopic(eventFragment) {
+      static getEventTopic(eventFragment) {
           return id(eventFragment.format());
       }
       // Find a function definition by any means necessary (unless it is ambiguous)
@@ -7344,7 +7350,7 @@
           if (typeof (eventFragment) === "string") {
               eventFragment = this.getEvent(eventFragment);
           }
-          return getStatic(this.constructor, "getTopic")(eventFragment);
+          return getStatic(this.constructor, "getEventTopic")(eventFragment);
       }
       _decodeParams(params, data) {
           return this._abiCoder.decode(params, data);
@@ -7781,7 +7787,7 @@
       }
   }
 
-  const version$a = "contracts/5.0.0-beta.143";
+  const version$a = "contracts/5.0.0-beta.144";
   const logger$e = new Logger(version$a);
   ///////////////////////////////
   const allowedTransactionKeys$1 = {
@@ -7914,7 +7920,11 @@
                       return wait(confirmations).then((receipt) => {
                           receipt.events = receipt.logs.map((log) => {
                               let event = deepCopy(log);
-                              let parsed = contract.interface.parseLog(log);
+                              let parsed = null;
+                              try {
+                                  parsed = contract.interface.parseLog(log);
+                              }
+                              catch (e) { }
                               if (parsed) {
                                   event.args = parsed.args;
                                   event.decode = (data, topics) => {
@@ -9782,7 +9792,7 @@
 
   var _version = createCommonjsModule(function (module, exports) {
   Object.defineProperty(exports, "__esModule", { value: true });
-  exports.version = "sha2/5.0.0-beta.134";
+  exports.version = "sha2/5.0.0-beta.135";
   });
 
   var _version$1 = unwrapExports(_version);
@@ -12899,7 +12909,7 @@
 
   var _version$4 = createCommonjsModule(function (module, exports) {
   Object.defineProperty(exports, "__esModule", { value: true });
-  exports.version = "random/5.0.0-beta.133";
+  exports.version = "random/5.0.0-beta.134";
   });
 
   var _version$5 = unwrapExports(_version$4);
@@ -14994,7 +15004,7 @@
       return recoverAddress(hashMessage(message), signature);
   }
 
-  const version$h = "networks/5.0.0-beta.135";
+  const version$h = "networks/5.0.0-beta.136";
   const logger$l = new Logger(version$h);
   function ethDefaultProvider(network) {
       return function (providers, options) {
@@ -15030,17 +15040,12 @@
               return null;
           }
           if (providers.FallbackProvider) {
-              let quorum = providerList.length / 2;
+              let quorum = 1;
               if (options.quorum != null) {
                   quorum = options.quorum;
               }
-              else if (quorum > 2) {
-                  if (network === "homestead") {
-                      quorum = 2;
-                  }
-                  else {
-                      quorum = 1;
-                  }
+              else if (network === "homestead") {
+                  quorum = 2;
               }
               return new providers.FallbackProvider(providerList, quorum);
           }
@@ -15767,7 +15772,7 @@
   	encode: browser_2$3
   });
 
-  const version$i = "web/5.0.0-beta.135";
+  const version$i = "web/5.0.0-beta.136";
   var __awaiter$2 = (window && window.__awaiter) || function (thisArg, _arguments, P, generator) {
       function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
       return new (P || (P = Promise))(function (resolve, reject) {
@@ -15810,10 +15815,6 @@
       };
       let allow304 = false;
       let timeout = 2 * 60 * 1000;
-      let throttle = 25;
-      if (options.throttleLimit) {
-          throttle = options.throttleLimit;
-      }
       if (typeof (connection) === "string") {
           url = connection;
       }
@@ -15877,9 +15878,6 @@
           };
           return { promise, cancel };
       })();
-      if (throttle == 100) {
-          console.log(throttle);
-      }
       const runningFetch = (function () {
           return __awaiter$2(this, void 0, void 0, function* () {
               let response = null;
@@ -16016,7 +16014,7 @@
       });
   }
 
-  const version$j = "providers/5.0.0-beta.153";
+  const version$j = "providers/5.0.0-beta.154";
   const logger$n = new Logger(version$j);
   class Formatter {
       constructor() {
@@ -17547,9 +17545,7 @@
                           try {
                               return resolve(getNetwork(BigNumber.from(chainId).toNumber()));
                           }
-                          catch (error) {
-                              console.log("e3", error);
-                          }
+                          catch (error) { }
                       }
                       reject(logger$p.makeError("could not detect network", Logger.errors.NETWORK_ERROR));
                   }), 0);
@@ -17601,6 +17597,14 @@
                   provider: this
               });
               return result;
+          }, (error) => {
+              this.emit("debug", {
+                  action: "response",
+                  error: error,
+                  request: request,
+                  provider: this
+              });
+              throw error;
           });
       }
       perform(method, params) {
@@ -17909,6 +17913,7 @@
       }
       return parseInt(blockTag.substring(2), 16);
   }
+  const defaultApiKey$1 = "9D13ZE7XSBTJ94N9BNJ2MA33VMAY2YPIRB";
   class EtherscanProvider extends BaseProvider {
       constructor(network, apiKey) {
           logger$t.checkNew(new.target, EtherscanProvider);
@@ -17938,7 +17943,7 @@
                   throw new Error("unsupported network");
           }
           defineReadOnly(this, "baseUrl", baseUrl);
-          defineReadOnly(this, "apiKey", apiKey);
+          defineReadOnly(this, "apiKey", apiKey || defaultApiKey$1);
       }
       perform(method, params) {
           const _super = Object.create(null, {
@@ -18697,13 +18702,13 @@
   }
   const logger$x = new Logger(version$j);
   // Special API key provided by Nodesmith for ethers.js
-  const defaultApiKey$1 = "ETHERS_JS_SHARED";
+  const defaultApiKey$2 = "ETHERS_JS_SHARED";
   class NodesmithProvider extends UrlJsonRpcProvider {
       static getApiKey(apiKey) {
           if (apiKey && typeof (apiKey) !== "string") {
               logger$x.throwArgumentError("invalid apiKey", "apiKey", apiKey);
           }
-          return apiKey || defaultApiKey$1;
+          return apiKey || defaultApiKey$2;
       }
       static getUrl(network, apiKey) {
           logger$x.warn("NodeSmith will be discontinued on 2019-12-20; please migrate to another platform.");
@@ -19066,7 +19071,7 @@
   	Indexed: Indexed
   });
 
-  const version$l = "ethers/5.0.0-beta.173";
+  const version$l = "ethers/5.0.0-beta.174";
   const errors = Logger.errors;
   const logger$B = new Logger(version$l);
 
