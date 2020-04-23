@@ -47,7 +47,7 @@ export default {
         };
     },
     fetchChainId: () => {
-        return provider.send('net_version').then((result) => {
+        return provider.send('eth_chainId').then((result) => {
             return '' + result;
         });
         // return provider.getNetwork().then((net) => {
@@ -62,7 +62,7 @@ export default {
         // });
     },
     fetchBuiltinChainId: () => {
-        return builtinProvider.send('net_version').then((result) => {
+        return builtinProvider.send('eth_chainId').then((result) => {
             return '' + result;
         });
         // return builtinProvider.getNetwork().then((net) => {
