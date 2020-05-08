@@ -1,4 +1,5 @@
-import * as ethers from 'ethers';
+import {Wallet, Contract} from 'ethers';
+import {JsonRpcProvider, Web3Provider} from "@ethersproject/providers";
 
 let contracts = {};
 let provider;
@@ -13,19 +14,19 @@ export default {
         signer = undefined;
         builtinProvider = undefined;
         if (typeof web3ProviderOrURL === 'string') {
-            provider = new ethers.providers.JsonRpcProvider(web3ProviderOrURL);
+            provider = new JsonRpcProvider(web3ProviderOrURL);
             if (privateKey) {
-                signer = new ethers.Wallet(privateKey);
+                signer = new Wallet(privateKey);
                 signer = signer.connect(provider);
                 builtinProvider = provider;
             } else if (web3Provider) {
-                builtinProvider = new ethers.providers.Web3Provider(web3Provider);
+                builtinProvider = new Web3Provider(web3Provider);
                 web3ProviderGiven = web3Provider;
             } else {
                 builtinProvider = provider;
             }
         } else {
-            provider = new ethers.providers.Web3Provider(web3ProviderOrURL);
+            provider = new providers.Web3Provider(web3ProviderOrURL);
             web3ProviderGiven = web3ProviderOrURL;
             builtinProvider = provider;
             signer = provider.getSigner();
@@ -81,7 +82,7 @@ export default {
         contracts = {};
         for (let key of Object.keys(contractsInfo)) {
             const info = contractsInfo[key];
-            contracts[key] = new ethers.Contract(info.address, info.contractInfo.abi, signer || provider);
+            contracts[key] = new Contract(info.address, info.contractInfo.abi, signer || provider);
         }
 
         // TODO remove (debug)

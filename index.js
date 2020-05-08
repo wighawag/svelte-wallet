@@ -1,6 +1,7 @@
 import eth from './eth';
 import { isPrivateWindow } from './web';
 import * as ethers from 'ethers';
+import {JsonRpcProvider, Web3Provider} from "@ethersproject/providers";
 const { Wallet } = ethers;
 
 function noop() {}
@@ -637,7 +638,7 @@ export default (log) => {
         _accountFetchTimeout = accountFetchTimeout;
         _fallbackUrl = fallbackUrl;
         if (fallbackUrl) {
-            _fallbackProvider = new ethers.providers.JsonRpcProvider(fallbackUrl);
+            _fallbackProvider = new JsonRpcProvider(fallbackUrl);
         }
         _registerContracts = registerContracts;
         _fetchInitialBalance = fetchInitialBalance;
