@@ -1,6 +1,6 @@
 {
   "name": "svelte-wallet",
-  "version": "0.1.31",
+  "version": "0.1.32",
   "main": "dist/svelte-wallet.cjs.js",
   "module": "dist/svelte-wallet.esm.js",
   "browser": "dist/svelte-wallet.umd.js",
@@ -8,7 +8,7 @@
   "author": "Wighawag <wighawag@gmail.com>",
   "license": "MIT",
   "dependencies": {
-    "ethers": "5.0.0-beta.183"
+    "ethers": "^5.0.0-beta.186"
   },
   "devDependencies": {
     "rollup": "^1.20.0",
